@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: stone-ai-cs
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node .next/standalone/stone-ai-cs/server.js
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_EMBEDDING_MODEL
+        sync: false
+      - key: NEXT_PUBLIC_APP_NAME
+        value: 云浮石材AI客服
+      - key: NEXT_PUBLIC_COMPANY_NAME
+        value: 云浮石材有限公司
