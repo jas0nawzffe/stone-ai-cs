@@ -1,4 +1,5 @@
 import type OpenAI from 'openai';
+import type { Product } from '@/lib/types';
 import { NextRequest } from 'next/server';
 import { getOrCreateConversation, saveMessage, getMessages } from '@/lib/db/conversations';
 import { retrieveContext, searchProducts } from '@/lib/ai/intent';
@@ -38,11 +39,13 @@ export async function POST(req: NextRequest) {
         content: m.content,
       }));
 
-    // 4. RAG retrieval + intent classification (in parallel)
+    // 4. RAG retrieval + intent classification (in parallel, each fails safely)
+    const safe = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
+      p.catch((e) => { console.warn('RAG sub-task failed:', e.message); return fallback; });
     const [ragResult, intent, products] = await Promise.all([
-      retrieveContext(message),
-      classifyIntent(message),
-      searchProducts(message),
+      safe(retrieveContext(message), { knowledge: [], faqs: [], scripts: [] }),
+      safe(classifyIntent(message), 'general_chat'),
+      safe(searchProducts(message), [] as Product[]),
     ]);
 
     // 5. Build system prompt
