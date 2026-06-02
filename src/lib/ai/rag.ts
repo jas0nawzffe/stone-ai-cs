@@ -17,13 +17,15 @@ export async function* streamChat(
     model: getModel(),
     messages,
     temperature: options?.temperature ?? 0.7,
-    max_tokens: options?.maxTokens ?? 2000,
+    max_tokens: options?.maxTokens ?? 4000,
     stream: true,
   });
 
   for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta?.content;
-    if (delta) yield delta;
+    const delta = chunk.choices[0]?.delta;
+    // DeepSeek V4 streams reasoning_content first, then content — yield both
+    const text = delta?.content || delta?.reasoning_content;
+    if (text) yield text;
   }
 }
 
@@ -35,7 +37,7 @@ export async function chatOnce(
     model: getModel(),
     messages,
     temperature: options?.temperature ?? 0.7,
-    max_tokens: options?.maxTokens ?? 2000,
+    max_tokens: options?.maxTokens ?? 4000,
   });
 
   return response.choices[0]?.message?.content || '';
