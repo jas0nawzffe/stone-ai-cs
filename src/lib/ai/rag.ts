@@ -22,9 +22,9 @@ export async function* streamChat(
   });
 
   for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta;
+    const delta = chunk.choices[0]?.delta as Record<string, unknown> | null | undefined;
     // DeepSeek V4 streams reasoning_content first, then content — yield both
-    const text = delta?.content || delta?.reasoning_content;
+    const text = (delta?.content || delta?.reasoning_content) as string | undefined;
     if (text) yield text;
   }
 }
