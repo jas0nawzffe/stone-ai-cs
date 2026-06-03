@@ -87,30 +87,29 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(`data: ${leadData}\n\n`));
           }
 
-          // Save assistant message
-          const savedMsg = await saveMessage(conv.id, 'assistant', fullResponse, products.slice(0, 5).map((p) => p.id));
-
-          // Log AI
-          await createAILog({
-            conversation_id: conv.id,
-            message_id: savedMsg.id,
-            model,
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            latency_ms: Date.now() - startTime,
-            intent,
-            knowledge_sources: ragResult.knowledge,
-            faq_sources: ragResult.faqs,
-            product_recommended: products.slice(0, 5).map((p) => p.id),
-          });
-
-          const done = JSON.stringify({
-            type: 'done',
-            conversation_id: conv.id,
-            message_id: savedMsg.id,
-          });
+          // Send done and close stream BEFORE DB writes to avoid Vercel 10s timeout
+          const done = JSON.stringify({ type: 'done', conversation_id: conv.id });
           controller.enqueue(encoder.encode(`data: ${done}\n\n`));
           controller.close();
+
+          // DB operations are best-effort after stream closure
+          try {
+            const savedMsg = await saveMessage(conv.id, 'assistant', fullResponse, products.slice(0, 5).map((p) => p.id));
+            await createAILog({
+              conversation_id: conv.id,
+              message_id: savedMsg.id,
+              model,
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              latency_ms: Date.now() - startTime,
+              intent,
+              knowledge_sources: ragResult.knowledge,
+              faq_sources: ragResult.faqs,
+              product_recommended: products.slice(0, 5).map((p) => p.id),
+            });
+          } catch (dbErr) {
+            console.warn('Post-stream DB save failed:', (dbErr as Error).message);
+          }
         } catch (e) {
           const err = JSON.stringify({ type: 'error', content: 'AI服务暂时不可用，请稍后重试' });
           controller.enqueue(encoder.encode(`data: ${err}\n\n`));
